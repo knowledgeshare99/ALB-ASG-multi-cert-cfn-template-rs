@@ -16,7 +16,11 @@
         "Description" : "The list of SubnetIds in your Virtual Private Cloud (VPC)",
         "ConstraintDescription" : "must be a list of at least two existing subnets associated with at least two different availability zones. They should be residing in the selected Virtual Private Cloud."
       },
-  
+      "Certificates" : {
+        "Type" : "List<AWS::EC2::CertificateManager::Id>",
+        "Description" : "The list of Certificates in your Virtual Private Cloud (VPC)",
+        "ConstraintDescription" : "must be a list of at least one existing certificate"
+      },
       "InstanceType" : {
         "Description" : "WebServer EC2 instance type",
         "Type" : "String",
@@ -402,19 +406,24 @@
             "TargetGroupArn" : { "Ref" : "ALBTargetGroup" }
           }],
           "LoadBalancerArn" : { "Ref" : "ApplicationLoadBalancer" },
-          "Port" : "80",
-          "Protocol" : "HTTP"
+          "Port" : "443",
+          "Protocol" : "HTTPS"
         }
-      },
-  
+      },  
+      "ALBCerts" : {
+        "Type" : "AWS::ElasticLoadBalancingV2::ListenerCertificate",
+        "Properties" : {
+            "Certificates" : { "Ref" : "Certificates"}
+        }
+      },  
       "ALBTargetGroup" : {
         "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
         "Properties" : {
           "HealthCheckIntervalSeconds" : 30,
           "HealthCheckTimeoutSeconds" : 5,
           "HealthyThresholdCount" : 3,
-          "Port" : 80,
-          "Protocol" : "HTTP",
+          "Port" : 443,
+          "Protocol" : "HTTPS",
           "UnhealthyThresholdCount" : 5,
           "VpcId" : {"Ref" : "VpcId"}
         }
@@ -432,8 +441,8 @@
           },
           {
             "IpProtocol" : "tcp",
-            "FromPort" : "80",
-            "ToPort" : "80",
+            "FromPort" : "443",
+            "ToPort" : "443",
             "SourceSecurityGroupId" : {"Fn::Select" : [0, {"Fn::GetAtt" : ["ApplicationLoadBalancer", "SecurityGroups"]}]}
           } ],
           "VpcId" : { "Ref" : "VpcId" }
