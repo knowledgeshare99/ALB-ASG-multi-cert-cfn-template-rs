@@ -475,7 +475,7 @@
             "SourceSecurityGroupId" : {"Fn::Select" : [0, {"Fn::GetAtt" : ["ApplicationLoadBalancer", "SecurityGroups"]}]}
           },
           {
-            "IpProtocol" : "HTTPS",
+            "IpProtocol" : "tcp",
             "FromPort" : "443",
             "ToPort" : "443",
             "SourceSecurityGroupId" : {"Fn::Select" : [0, {"Fn::GetAtt" : ["ApplicationLoadBalancer", "SecurityGroups"]}]}
