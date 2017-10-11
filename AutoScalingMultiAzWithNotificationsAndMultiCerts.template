@@ -1,25 +1,27 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
   
-    "Description" : "AWS CloudFormation Sample Template AutoScalingMultiAZWithNotifications: Create a multi-az, load balanced and Auto Scaled sample web site running on an Apache Web Serever. The application is configured to span all Availability Zones in the region and is Auto-Scaled based on the CPU utilization of the web servers. Notifications will be sent to the operator email address on scaling events. The instances are load balanced with a simple health check against the default web page. **WARNING** This template creates one or more Amazon EC2 instances and an Application Load Balancer. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Description" : "Note: this has been modified to use HTTPS routing and multiple certificates on an HTTPS listener. Original Template URL and documentation follow: https://s3.amazonaws.com/cloudformation-templates-us-east-1/AutoScalingMultiAZWithNotifications.template AWS CloudFormation Sample Template AutoScalingMultiAZWithNotifications: Create a multi-az, load balanced and Auto Scaled sample web site running on an Apache Web Serever. The application is configured to span all Availability Zones in the region and is Auto-Scaled based on the CPU utilization of the web servers. Notifications will be sent to the operator email address on scaling events. The instances are load balanced with a simple health check against the default web page. **WARNING** This template creates one or more Amazon EC2 instances and an Application Load Balancer. You will be billed for the AWS resources used if you create a stack from this template.",
   
     "Parameters" : {
   
       "VpcId" : {
         "Type" : "AWS::EC2::VPC::Id",
         "Description" : "VpcId of your existing Virtual Private Cloud (VPC)",
+        "Default" : "vpc-da3c10bc",
         "ConstraintDescription" : "must be the VPC Id of an existing Virtual Private Cloud."
       },
   
       "Subnets" : {
         "Type" : "List<AWS::EC2::Subnet::Id>",
         "Description" : "The list of SubnetIds in your Virtual Private Cloud (VPC)",
+        "Default" : "subnet-038d754b , subnet-ec6f2c89",
         "ConstraintDescription" : "must be a list of at least two existing subnets associated with at least two different availability zones. They should be residing in the selected Virtual Private Cloud."
       },
       "InstanceType" : {
         "Description" : "WebServer EC2 instance type",
         "Type" : "String",
-        "Default" : "t2.small",
+        "Default" : "t1.micro",
         "AllowedValues" : [ "t1.micro", "t2.nano", "t2.micro", "t2.small", "t2.medium", "t2.large", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "m4.large", "m4.xlarge", "m4.2xlarge", "m4.4xlarge", "m4.10xlarge", "c1.medium", "c1.xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge", "g2.2xlarge", "g2.8xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge", "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "d2.xlarge", "d2.2xlarge", "d2.4xlarge", "d2.8xlarge", "hi1.4xlarge", "hs1.8xlarge", "cr1.8xlarge", "cc2.8xlarge", "cg1.4xlarge"]
   ,
         "ConstraintDescription" : "must be a valid EC2 instance type."
@@ -29,12 +31,14 @@
         "Description": "EMail address to notify if there are any scaling operations",
         "Type": "String",
         "AllowedPattern": "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)",
+        "Default" : "yourEmailHere@email.com",
         "ConstraintDescription": "must be a valid email address."
       },
   
       "KeyName" : {
         "Description" : "The EC2 Key Pair to allow SSH access to the instances",
         "Type" : "AWS::EC2::KeyPair::KeyName",
+        "Default" : "alb-multicert-test",
         "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
       },
   
@@ -47,10 +51,17 @@
         "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
         "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
       },
-      "Certificates" : {
-        "Type" : "List<AWS::EC2::CertificateManager::DomainName>",
-        "Description" : "The list of Certificates in your Virtual Private Cloud (VPC)",
-        "ConstraintDescription" : "must be a list of at least one existing certificate"
+      "Certificate1ARN" : {
+        "Type" : "String",
+        "Description" : "The ARN for the first certificate",
+        "Default" : "arn:aws:acm:us-east-1:324320755747:certificate/585436fa-a563-4c23-b787-28bfa62a21a5", 
+        "ConstraintDescription" : "must be the ARN of an existing certificate"
+      },
+      "Certificate2ARN" : {
+          "Type" : "String",
+          "Description" : "The ARN for the second certificate",
+          "Default" : "arn:aws:acm:us-east-1:324320755747:certificate/0e0e0ab4-a0be-4ab5-aa50-ef9820bf1746",
+          "ConstraintDescription" : "must be the ARN of an existing certificate"
       }
     },
   
@@ -398,7 +409,7 @@
         }
       },
   
-      "ALBListener" : {
+      "ALBListenerService1" : {
         "Type" : "AWS::ElasticLoadBalancingV2::Listener",
         "Properties" : {
           "DefaultActions" : [{
@@ -407,15 +418,33 @@
           }],
           "LoadBalancerArn" : { "Ref" : "ApplicationLoadBalancer" },
           "Port" : "443",
-          "Protocol" : "HTTPS"
+          "Protocol" : "HTTPS",
+          "Certificates" : [ 
+            { "CertificateArn" :
+              { "Ref" : "Certificate1ARN"
+            }
+          }
+          ]
         }
-      },  
-      "ALBCerts" : {
-        "Type" : "AWS::ElasticLoadBalancingV2::ListenerCertificate",
+      },
+      "ALBListenerService2" : {
+        "Type" : "AWS::ElasticLoadBalancingV2::Listener",
         "Properties" : {
-            "Certificates" : { "Ref" : "Certificates"}
+          "DefaultActions" : [{
+            "Type" : "forward",
+            "TargetGroupArn" : { "Ref" : "ALBTargetGroup" }
+          }],
+          "LoadBalancerArn" : { "Ref" : "ApplicationLoadBalancer" },
+          "Port" : "8000",
+          "Protocol" : "HTTPS",
+          "Certificates" : [ 
+            { "CertificateArn" :
+              { "Ref" : "Certificate2ARN"
+            }
+          }
+          ]
         }
-      },  
+      },    
       "ALBTargetGroup" : {
         "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
         "Properties" : {
