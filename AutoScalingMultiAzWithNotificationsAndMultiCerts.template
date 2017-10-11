@@ -461,15 +461,21 @@
       "InstanceSecurityGroup" : {
         "Type" : "AWS::EC2::SecurityGroup",
         "Properties" : {
-          "GroupDescription" : "Enable SSH access and HTTP from the load balancer only",
+          "GroupDescription" : "Enable SSH access and HTTPS from the load balancer only",
           "SecurityGroupIngress" : [ {
             "IpProtocol" : "tcp",
             "FromPort" : "22",
             "ToPort" : "22",
             "CidrIp" : { "Ref" : "SSHLocation"}
           },
-          {
+          { 
             "IpProtocol" : "tcp",
+            "FromPort" : "8000",
+            "ToPort" : "8000",
+            "SourceSecurityGroupId" : {"Fn::Select" : [0, {"Fn::GetAtt" : ["ApplicationLoadBalancer", "SecurityGroups"]}]}
+          },
+          {
+            "IpProtocol" : "HTTPS",
             "FromPort" : "443",
             "ToPort" : "443",
             "SourceSecurityGroupId" : {"Fn::Select" : [0, {"Fn::GetAtt" : ["ApplicationLoadBalancer", "SecurityGroups"]}]}
